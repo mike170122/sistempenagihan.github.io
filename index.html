@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pengelolaan Penagihan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
+    <!-- Login/Register Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 fade-in">
+            <div class="p-8">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-file-invoice-dollar text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">Sistem Penagihan</h2>
+                    <p class="text-gray-600 mt-2">Kelola data penagihan dengan mudah</p>
+                </div>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="loginEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105">
+                        Masuk
+                    </button>
+                </form>
+
+                <!-- Register Form (Hidden) -->
+                <form id="registerForm" class="space-y-6 hidden">
+                    <div>
+                        <label for="registerName" class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+                        <input type="text" id="registerName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label for="registerEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="registerPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label for="registerRole" class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                        <select id="registerRole" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105">
+                        Daftar
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button id="toggleAuth" class="text-blue-600 hover:text-blue-800 font-medium">
+                        Belum punya akun? Daftar di sini
+                    </button>
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg text-sm">
+                        <p class="font-medium text-blue-800 mb-1">Akun Demo:</p>
+                        <p class="text-blue-700">Admin: admin@test.com / admin123</p>
+                        <p class="text-blue-700">User: user@test.com / user123</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden h-full flex">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 bg-white shadow-xl slide-in">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-file-invoice-dollar text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-800">Penagihan</h1>
+                        <p id="userInfo" class="text-sm text-gray-600"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="mt-6">
+                <a href="#" onclick="showSection('dashboard')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-chart-dashboard w-5 mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="#" onclick="showSection('billing')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-file-invoice w-5 mr-3"></i>
+                    Data Penagihan
+                </a>
+                <a href="#" onclick="showSection('reports')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-chart-bar w-5 mr-3"></i>
+                    Laporan
+                </a>
+                <div id="adminMenu" class="hidden">
+                    <a href="#" onclick="showSection('users')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-users w-5 mr-3"></i>
+                        Kelola User
+                    </a>
+                </div>
+            </nav>
+
+            <div class="absolute bottom-6 left-6 right-6">
+                <button onclick="logout()" class="w-full flex items-center justify-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    Keluar
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h2 id="pageTitle" class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                    <div class="flex items-center space-x-4">
+                        <button class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+                            <i class="fas fa-bell"></i>
+                        </button>
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
+                            <span id="userInitial" class="text-white text-sm font-semibold"></span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-auto p-6">
+                <!-- Dashboard Section -->
+                <div id="dashboardSection" class="fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Total Tagihan</p>
+                                    <p id="totalBills" class="text-2xl font-bold text-gray-800">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-invoice text-blue-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Lunas</p>
+                                    <p id="paidBills" class="text-2xl font-bold text-green-600">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Belum Lunas</p>
+                                    <p id="unpaidBills" class="text-2xl font-bold text-red-600">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-exclamation-circle text-red-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Total Nilai</p>
+                                    <p id="totalAmount" class="text-2xl font-bold text-indigo-600">Rp 0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-money-bill-wave text-indigo-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Tagihan Terbaru</h3>
+                        <div id="recentBills" class="space-y-3">
+                            <p class="text-gray-500 text-center py-8">Belum ada data tagihan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing Section -->
+                <div id="billingSection" class="hidden fade-in">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <h3 class="text-lg font-semibold text-gray-800">Data Penagihan</h3>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                        <i class="fas fa-file-excel mr-2"></i>Export Excel
+                                    </button>
+                                    <button onclick="exportToPDF()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                        <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                                    </button>
+                                    <button onclick="showAddBillModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>Tambah Tagihan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6">
+                            <div class="mb-4">
+                                <input type="text" id="searchInput" placeholder="Cari berdasarkan nama atau nomor tagihan..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-gray-200">
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">No. Tagihan</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Nama Pelanggan</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Jumlah</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Tanggal</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="billsTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center py-8 text-gray-500">Belum ada data tagihan</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Section -->
+                <div id="reportsSection" class="hidden fade-in">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-6">Laporan Penagihan</h3>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="reportStartDate" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
+                                    <input type="date" id="reportStartDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="reportEndDate" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
+                                    <input type="date" id="reportEndDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                <button onclick="generateReport()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-chart-bar mr-2"></i>Generate Laporan
+                                </button>
+                            </div>
+                            
+                            <div id="reportSummary" class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-semibold text-gray-800 mb-3">Ringkasan Laporan</h4>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span>Total Tagihan:</span>
+                                        <span id="reportTotalBills">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Lunas:</span>
+                                        <span id="reportPaidBills" class="text-green-600">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Belum Lunas:</span>
+                                        <span id="reportUnpaidBills" class="text-red-600">0</span>
+                                    </div>
+                                    <div class="flex justify-between font-semibold border-t pt-2">
+                                        <span>Total Nilai:</span>
+                                        <span id="reportTotalAmount">Rp 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Section (Admin Only) -->
+                <div id="usersSection" class="hidden fade-in">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800">Kelola User</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-gray-200">
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Nama</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Email</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Role</th>
+                                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Bill Modal -->
+    <div id="billModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 fade-in">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 id="billModalTitle" class="text-xl font-bold text-gray-800">Tambah Tagihan</h3>
+                    <button onclick="closeBillModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="billForm" class="space-y-4">
+                    <input type="hidden" id="billId">
+                    <div>
+                        <label for="billNumber" class="block text-sm font-medium text-gray-700 mb-2">Nomor Tagihan</label>
+                        <input type="text" id="billNumber" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="customerName" class="block text-sm font-medium text-gray-700 mb-2">Nama Pelanggan</label>
+                        <input type="text" id="customerName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="billAmount" class="block text-sm font-medium text-gray-700 mb-2">Jumlah Tagihan</label>
+                        <input type="number" id="billAmount" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="billDate" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Tagihan</label>
+                        <input type="date" id="billDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="billStatus" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select id="billStatus" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="unpaid">Belum Lunas</option>
+                            <option value="paid">Lunas</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-3 pt-4">
+                        <button type="button" onclick="closeBillModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 fade-in">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-trash text-red-600 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Hapus Tagihan</h3>
+                <p class="text-gray-600 mb-6">Apakah Anda yakin ingin menghapus tagihan ini? Tindakan ini tidak dapat dibatalkan.</p>
+                <div class="flex space-x-3">
+                    <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button onclick="confirmDelete()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let users = JSON.parse(localStorage.getItem('billingUsers')) || [
+            {
+                id: 1,
+                name: 'Admin User',
+                email: 'admin@test.com',
+                password: 'admin123',
+                role: 'admin'
+            },
+            {
+                id: 2,
+                name: 'Regular User',
+                email: 'user@test.com',
+                password: 'user123',
+                role: 'user'
+            }
+        ];
+        let bills = JSON.parse(localStorage.getItem('billingData')) || [];
+        let currentSection = 'dashboard';
+        let editingBillId = null;
+        let deletingBillId = null;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is logged in
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showMainApp();
+            }
+
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Save default users if not exists
+            if (!localStorage.getItem('billingUsers')) {
+                localStorage.setItem('billingUsers', JSON.stringify(users));
+            }
+            
+            // Set default dates for reports
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('reportStartDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('reportEndDate').value = today.toISOString().split('T')[0];
+        });
+
+        function setupEventListeners() {
+            // Auth forms
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
+            
+            // Bill form
+            document.getElementById('billForm').addEventListener('submit', handleBillSubmit);
+            
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', filterBills);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const user = users.find(u => u.email === email && u.password === password);
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showMainApp();
+            } else {
+                showNotification('Email atau password salah!', 'error');
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const role = document.getElementById('registerRole').value;
+
+            if (users.find(u => u.email === email)) {
+                showNotification('Email sudah terdaftar!', 'error');
+                return;
+            }
+
+            const newUser = {
+                id: Date.now(),
+                name,
+                email,
+                password,
+                role
+            };
+
+            users.push(newUser);
+            localStorage.setItem('billingUsers', JSON.stringify(users));
+            showNotification('Registrasi berhasil! Silakan login.', 'success');
+            toggleAuthForm();
+        }
+
+        function toggleAuthForm() {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const toggleButton = document.getElementById('toggleAuth');
+
+            if (loginForm.classList.contains('hidden')) {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                toggleButton.textContent = 'Belum punya akun? Daftar di sini';
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                toggleButton.textContent = 'Sudah punya akun? Masuk di sini';
+            }
+        }
+
+        function showMainApp() {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            // Update user info
+            document.getElementById('userInfo').textContent = `${currentUser.name} (${currentUser.role})`;
+            document.getElementById('userInitial').textContent = currentUser.name.charAt(0).toUpperCase();
+            
+            // Show admin menu if user is admin
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminMenu').classList.remove('hidden');
+            }
+            
+            // Load dashboard
+            showSection('dashboard');
+            updateDashboard();
+            loadBills();
+            loadUsers();
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('hidden');
+            
+            // Reset forms
+            document.getElementById('loginForm').reset();
+            document.getElementById('registerForm').reset();
+        }
+
+        function showSection(section) {
+            // Hide all sections
+            const sections = ['dashboardSection', 'billingSection', 'reportsSection', 'usersSection'];
+            sections.forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            
+            // Remove active class from nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-blue-50', 'text-blue-600');
+            });
+            
+            // Show selected section
+            document.getElementById(section + 'Section').classList.remove('hidden');
+            
+            // Update page title
+            const titles = {
+                dashboard: 'Dashboard',
+                billing: 'Data Penagihan',
+                reports: 'Laporan',
+                users: 'Kelola User'
+            };
+            document.getElementById('pageTitle').textContent = titles[section];
+            
+            // Add active class to current nav item
+            event.target.classList.add('bg-blue-50', 'text-blue-600');
+            
+            currentSection = section;
+            
+            // Load section-specific data
+            if (section === 'dashboard') {
+                updateDashboard();
+            } else if (section === 'billing') {
+                loadBills();
+            } else if (section === 'users') {
+                loadUsers();
+            }
+        }
+
+        function updateDashboard() {
+            const totalBills = bills.length;
+            const paidBills = bills.filter(b => b.status === 'paid').length;
+            const unpaidBills = bills.filter(b => b.status === 'unpaid').length;
+            const totalAmount = bills.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+
+            document.getElementById('totalBills').textContent = totalBills;
+            document.getElementById('paidBills').textContent = paidBills;
+            document.getElementById('unpaidBills').textContent = unpaidBills;
+            document.getElementById('totalAmount').textContent = formatCurrency(totalAmount);
+
+            // Show recent bills
+            const recentBills = bills.slice(-5).reverse();
+            const recentBillsContainer = document.getElementById('recentBills');
+            
+            if (recentBills.length === 0) {
+                recentBillsContainer.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada data tagihan</p>';
+            } else {
+                recentBillsContainer.innerHTML = recentBills.map(bill => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <p class="font-medium text-gray-800">${bill.customerName}</p>
+                            <p class="text-sm text-gray-600">${bill.billNumber}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-800">${formatCurrency(bill.amount)}</p>
+                            <span class="inline-block px-2 py-1 text-xs rounded-full ${bill.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${bill.status === 'paid' ? 'Lunas' : 'Belum Lunas'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function loadBills() {
+            const tbody = document.getElementById('billsTableBody');
+            
+            if (bills.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">Belum ada data tagihan</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = bills.map(bill => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4">${bill.billNumber}</td>
+                    <td class="py-3 px-4">${bill.customerName}</td>
+                    <td class="py-3 px-4">${formatCurrency(bill.amount)}</td>
+                    <td class="py-3 px-4">${formatDate(bill.date)}</td>
+                    <td class="py-3 px-4">
+                        <span class="inline-block px-2 py-1 text-xs rounded-full ${bill.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${bill.status === 'paid' ? 'Lunas' : 'Belum Lunas'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex space-x-2">
+                            <button onclick="editBill(${bill.id})" class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="showDeleteModal(${bill.id})" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function loadUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            
+            tbody.innerHTML = users.map(user => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4">${user.name}</td>
+                    <td class="py-3 px-4">${user.email}</td>
+                    <td class="py-3 px-4">
+                        <span class="inline-block px-2 py-1 text-xs rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
+                            ${user.role === 'admin' ? 'Admin' : 'User'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        ${user.id !== currentUser.id ? `
+                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : '<span class="text-gray-400">Current User</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function showAddBillModal() {
+            document.getElementById('billModalTitle').textContent = 'Tambah Tagihan';
+            document.getElementById('billForm').reset();
+            document.getElementById('billId').value = '';
+            editingBillId = null;
+            
+            // Set default date to today
+            document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
+            
+            document.getElementById('billModal').classList.remove('hidden');
+        }
+
+        function editBill(id) {
+            const bill = bills.find(b => b.id === id);
+            if (!bill) return;
+
+            document.getElementById('billModalTitle').textContent = 'Edit Tagihan';
+            document.getElementById('billId').value = bill.id;
+            document.getElementById('billNumber').value = bill.billNumber;
+            document.getElementById('customerName').value = bill.customerName;
+            document.getElementById('billAmount').value = bill.amount;
+            document.getElementById('billDate').value = bill.date;
+            document.getElementById('billStatus').value = bill.status;
+            
+            editingBillId = id;
+            document.getElementById('billModal').classList.remove('hidden');
+        }
+
+        function closeBillModal() {
+            document.getElementById('billModal').classList.add('hidden');
+            editingBillId = null;
+        }
+
+        function handleBillSubmit(e) {
+            e.preventDefault();
+            
+            const billData = {
+                billNumber: document.getElementById('billNumber').value,
+                customerName: document.getElementById('customerName').value,
+                amount: parseFloat(document.getElementById('billAmount').value),
+                date: document.getElementById('billDate').value,
+                status: document.getElementById('billStatus').value
+            };
+
+            if (editingBillId) {
+                // Update existing bill
+                const index = bills.findIndex(b => b.id === editingBillId);
+                bills[index] = { ...bills[index], ...billData };
+                showNotification('Tagihan berhasil diperbarui!', 'success');
+            } else {
+                // Add new bill
+                billData.id = Date.now();
+                bills.push(billData);
+                showNotification('Tagihan berhasil ditambahkan!', 'success');
+            }
+
+            localStorage.setItem('billingData', JSON.stringify(bills));
+            closeBillModal();
+            loadBills();
+            updateDashboard();
+        }
+
+        function showDeleteModal(id) {
+            deletingBillId = id;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            deletingBillId = null;
+        }
+
+        function confirmDelete() {
+            if (deletingBillId) {
+                bills = bills.filter(b => b.id !== deletingBillId);
+                localStorage.setItem('billingData', JSON.stringify(bills));
+                showNotification('Tagihan berhasil dihapus!', 'success');
+                closeDeleteModal();
+                loadBills();
+                updateDashboard();
+            }
+        }
+
+        function deleteUser(id) {
+            users = users.filter(u => u.id !== id);
+            localStorage.setItem('billingUsers', JSON.stringify(users));
+            showNotification('User berhasil dihapus!', 'success');
+            loadUsers();
+        }
+
+        function filterBills() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredBills = bills.filter(bill => 
+                bill.customerName.toLowerCase().includes(searchTerm) ||
+                bill.billNumber.toLowerCase().includes(searchTerm)
+            );
+            
+            const tbody = document.getElementById('billsTableBody');
+            
+            if (filteredBills.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">Tidak ada data yang ditemukan</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredBills.map(bill => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4">${bill.billNumber}</td>
+                    <td class="py-3 px-4">${bill.customerName}</td>
+                    <td class="py-3 px-4">${formatCurrency(bill.amount)}</td>
+                    <td class="py-3 px-4">${formatDate(bill.date)}</td>
+                    <td class="py-3 px-4">
+                        <span class="inline-block px-2 py-1 text-xs rounded-full ${bill.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${bill.status === 'paid' ? 'Lunas' : 'Belum Lunas'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex space-x-2">
+                            <button onclick="editBill(${bill.id})" class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="showDeleteModal(${bill.id})" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function generateReport() {
+            const startDate = document.getElementById('reportStartDate').value;
+            const endDate = document.getElementById('reportEndDate').value;
+            
+            if (!startDate || !endDate) {
+                showNotification('Pilih tanggal mulai dan akhir!', 'error');
+                return;
+            }
+
+            const filteredBills = bills.filter(bill => {
+                const billDate = new Date(bill.date);
+                return billDate >= new Date(startDate) && billDate <= new Date(endDate);
+            });
+
+            const totalBills = filteredBills.length;
+            const paidBills = filteredBills.filter(b => b.status === 'paid').length;
+            const unpaidBills = filteredBills.filter(b => b.status === 'unpaid').length;
+            const totalAmount = filteredBills.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+
+            document.getElementById('reportTotalBills').textContent = totalBills;
+            document.getElementById('reportPaidBills').textContent = paidBills;
+            document.getElementById('reportUnpaidBills').textContent = unpaidBills;
+            document.getElementById('reportTotalAmount').textContent = formatCurrency(totalAmount);
+
+            showNotification('Laporan berhasil dibuat!', 'success');
+        }
+
+        function exportToExcel() {
+            if (bills.length === 0) {
+                showNotification('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+
+            const ws = XLSX.utils.json_to_sheet(bills.map(bill => ({
+                'No. Tagihan': bill.billNumber,
+                'Nama Pelanggan': bill.customerName,
+                'Jumlah': bill.amount,
+                'Tanggal': bill.date,
+                'Status': bill.status === 'paid' ? 'Lunas' : 'Belum Lunas'
+            })));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Data Penagihan');
+            XLSX.writeFile(wb, 'data-penagihan.xlsx');
+            
+            showNotification('Data berhasil diekspor ke Excel!', 'success');
+        }
+
+        function exportToPDF() {
+            if (bills.length === 0) {
+                showNotification('Tidak ada data untuk diekspor!', 'error');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text('Laporan Data Penagihan', 20, 20);
+            
+            doc.setFontSize(10);
+            let y = 40;
+            
+            bills.forEach((bill, index) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                doc.text(`${index + 1}. ${bill.billNumber} - ${bill.customerName}`, 20, y);
+                doc.text(`   Jumlah: ${formatCurrency(bill.amount)}`, 20, y + 5);
+                doc.text(`   Tanggal: ${formatDate(bill.date)}`, 20, y + 10);
+                doc.text(`   Status: ${bill.status === 'paid' ? 'Lunas' : 'Belum Lunas'}`, 20, y + 15);
+                
+                y += 25;
+            });
+
+            doc.save('data-penagihan.pdf');
+            showNotification('Data berhasil diekspor ke PDF!', 'success');
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR'
+            }).format(amount);
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('id-ID');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white fade-in ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'993a16ce0262189b',t:'MTc2MTMxNTM1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
